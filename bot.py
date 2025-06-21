@@ -1,58 +1,57 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
 import discord
 from discord.ext import commands
-
-### CONSTANTS ##################################################################
-
-CHANNEL_ID = # Posa aquí el teu Channel ID
+from channels import CHANNELS
 
 ### FUNCTIONS ##################################################################
 
+def get_arguments():
+    parser = argparse.ArgumentParser(description="A Discord bot that sends a message to a specified channel.")
+    parser.add_argument('-m', '--message', required=True, help='Message to send')
+    parser.add_argument('-c', '--channel', required=True, help='Target channel name (e.g., general, dev, server-status)')
+    return parser.parse_args()
+
 def read_token():
-    # Llegix el token des d'un fitxer
     with open('token.txt', 'r') as token_file:
         return token_file.read().strip()
 
 def create_bot():
-    # Configurar el bot amb intents i configuracions
     intents = discord.Intents.default()
     intents.typing = False
     intents.presences = False
+    # Optional: intents.message_content = True if needed for reading messages
+    return commands.Bot(command_prefix='!', description='Simple message-sending bot', intents=intents)
 
-    return commands.Bot(command_prefix='!', description='A bot that sends messages from a command parameter', intents=intents)
-
-async def send_message(bot, message):
-    # Enviar el missatge al canal fixat
-    print(f'We have logged in as {bot.user}')
-    channel = bot.get_channel(CHANNEL_ID)  # Utilitza la constant CHANNEL_ID
+async def send_message(bot, channel_id, message):
+    print(f'Logged in as {bot.user}')
+    channel = bot.get_channel(channel_id)
     if channel:
         await channel.send(message)
-        print(f"Missatge {message} enviat al canal {channel}")
+        print(f'Message "{message}" successfully sent to channel: {channel.name}')
     else:
-        print("Error: No s'ha trobat el canal.")
-
+        print(f"Error: Channel with ID {channel_id} not found or not accessible.")
     await bot.close()
 
 ### MAIN #######################################################################
 
 def main():
+    args = get_arguments()
+    message = args.message
+    channel_name = args.channel
 
-    # Comprovar que s'ha passat un missatge com a paràmetre
+    if channel_name not in CHANNELS:
+        print(f"Error: Channel \"{channel_name}\" does not exist. Available channels: {', '.join(CHANNELS.keys())}")
+        exit(1)
 
-    if len(sys.argv) < 2:
-        print("Ús: python3 bot.py \"Missatge\"")
-        sys.exit(1)
-
-    message = sys.argv[1]   # S'agafa el missatge
-    token = read_token()    # Llegir el token
-
+    channel_id = CHANNELS[channel_name]
+    token = read_token()
     bot = create_bot()
 
     @bot.event
     async def on_ready():
-        await send_message(bot, message)
+        await send_message(bot, channel_id, message)
 
     bot.run(token)
 
